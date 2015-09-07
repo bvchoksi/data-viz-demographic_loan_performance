@@ -1,0 +1,234 @@
+<html>
+<body topmargin=10 leftmargin=10>
+<style>
+p {
+    font-family: "Helvetica";
+    font-size: 13px;
+    font-weight: 300;
+    margin: .5em 0 0 0;
+}
+.header {
+    font-family: "Helvetica";
+    font-size: 28px;
+    font-weight: 300;
+}
+.byline {
+    font-family: "Helvetica";
+    font-size: 18px;
+    font-weight: 300;
+}
+b {
+    font-family: "Helvetica";
+    font-size: 13px;
+    font-weight: 500;
+}
+a {
+    font-family: "Helvetica";
+    font-size: 12px;
+    font-weight: 300;
+}
+a:hover {
+    cursor: pointer;
+}
+#explanation {
+    font-family: "Helvetica";
+    font-size: 12px;
+    font-weight: 300;
+}
+</style>
+<p class=header>Prosper Loans: Good vs. Bad by Demographic Indicators</p>
+<p class=byline>by Bhavin V. Choksi</p>
+<hr color=#eeeeee noshade>
+<p>Loan data from peer-to-peer lending website Prosper.com yields some interesting findings, and reinforces
+certain preconceptions, when analyzed using demographic indicators.</p>
+<p>Blue-collar borrowers are able to repay loans as well as those in higher paying jobs.
+Retirees, who are considered well-off, default at a rate similar to those not employed.
+Renters are as good with keeping up on their loans as homeowners.
+Borrowers with a high number of delinquencies in the past 7 years, possibly due to the great recession, 
+are now able to maintain 80% of their loans.</p>
+<p><b>Click each demographic indicator on the grey sidebar for the complete story.</b></p>
+<hr color=#eeeeee noshade>
+<table width=100%><tr valign=top><td valign=top>
+<table cellpadding=5 width=200>
+    <tr><td bgcolor=#dddddd><b>Myth Busters</b></td></tr>
+    <tr><td bgcolor=#eeeeee><a onclick="updateChart('OccupationLevel')">Occupation Level</a></td></tr>
+    <tr><td bgcolor=#eeeeee><a onclick="updateChart('EmploymentStatus')">Employment Status</a></td></tr>
+    <tr><td bgcolor=#eeeeee><a onclick="updateChart('HousingStatus')">Housing Status</a></td></tr>
+    <tr><td bgcolor=#eeeeee><a onclick="updateChart('DelinquencyLevelLast7Years')">Delinquencies Last 7 Years</a></td></tr>
+    <tr><td bgcolor=#dddddd><b>No Surprises Here</b></td></tr>
+    <tr><td bgcolor=#eeeeee><a onclick="updateChart('CreditScore')">Credit Score</a></td></tr>
+    <tr><td bgcolor=#eeeeee><a onclick="updateChart('DebtToIncomeRatio')">Debt-to-Income Ratio</a></td></tr>
+    <tr><td bgcolor=#eeeeee><a onclick="updateChart('IncomeRange')">Income</a></td></tr>
+    <tr><td bgcolor=#eeeeee><a onclick="updateChart('CurrentDelinquencyLevel')">Current Delinquencies</a></td></tr>
+    <tr><td bgcolor=#dddddd><b>Meh</b></td></tr>
+    <tr><td bgcolor=#eeeeee><a onclick="updateChart('ProsperScore');">Prosper Score</a></td></tr>
+</table>
+<table cellpadding=5 width=200>
+    <tr><td bgcolor=#ffffbf><div id=explanation></div></td></tr>
+</table>
+</td><td valign=top>
+<div id=chartContainer>
+</div>
+</td></tr></table>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://dimplejs.org/dist/dimple.v2.1.6.min.js"></script>
+<script type="text/javascript">
+    var svg = dimple.newSvg("#chartContainer", 800, 500);
+    
+    function drawChart(file, category, categoryTitle, orderRule) {
+        d3.tsv(file, function (data) {
+            var chart = new dimple.chart(svg, data);
+            chart.setBounds(60, 5, 600, 400);
+            
+            var x = chart.addCategoryAxis("x", category);
+            x.addOrderRule(orderRule);
+            x.title = categoryTitle;
+            x.fontFamily = "Helvetica";
+            x.fontSize = "11px";
+            
+            var y = chart.addPctAxis("y", "Freq");
+            y.title = "Percentage of Good and Bad Loans";
+            y.fontFamily = "Helvetica";
+            y.fontSize = "11px";
+            
+            var s = chart.addSeries("LoanStatus", dimple.plot.bar);
+            s.addOrderRule(["Good", "Bad"]);
+            
+            chart.assignColor("Good", "#91bfdb");
+            chart.assignColor("Bad", "#fc8d59");
+            
+            legend = chart.addLegend(650, 5, 100, 100, "right");
+            legend.fontFamily = "Helvetica";
+            legend.fontSize = "11px";
+            
+            //Add legend title
+            svg.selectAll("title_text")
+                .data(["Numbers in bars", 
+                        "represent actual", 
+                        "number of loans", 
+                        "in each category."])
+                .enter()
+                .append("text")
+                .attr("x", 670)
+                .attr("y", function (d, i) { return 80 + i * 12; })
+                .style("font-family", "Helvetica")
+                .style("font-size", "11px")
+                .text(function (d) { return d; });
+            
+            
+            s.afterDraw = function (shape, data) {
+                var s = d3.select(shape),
+                rect = {
+                    x: parseFloat(s.attr("x")),
+                    y: parseFloat(s.attr("y")),
+                    width: parseFloat(s.attr("width")),
+                    height: parseFloat(s.attr("height"))
+                };
+                
+                //Only label bars where the text can fit
+                if (rect.height >= 20) {
+                    //Add a text label for the value
+                    svg.append("text")
+                    
+                    //Position in the centre of the shape (vertical position is
+                    //manually set due to cross-browser problems with baseline)
+                    .attr("x", rect.x + rect.width / 2)
+                    .attr("y", rect.y + rect.height / 2 + 3.5)
+                    
+                    //Centre align
+                    .style("text-anchor", "middle")
+                    .style("font-family", "Helvetica")
+                    .style("font-size", "11px")
+                    .style("font-weight", "bold")
+                    
+                    //Make it a little transparent to tone down the black
+                    .style("opacity", 0.6)
+                    
+                    //Format the number
+                    .text(d3.format(",.1f")(data.yValue / 1000) + "k");
+                }
+            };
+            
+            chart.ease = "linear";
+            chart.draw(1000);
+        });
+    }
+    
+    //Making the chart interactive by creating a JSON document to hold indicator attributes
+    var indicators = {
+        "OccupationLevel":
+        {
+            "file":"data/occupation_level.tsv",
+            "title":"Occupation Level",
+            "order":["Highly Skilled", "Skilled", "Semi-skilled", "Student"],
+            "explanation":"Semi-skilled borrowers are as good with keeping up on their loans as highly skilled people.<br><br>Even students maintain about 80% of their loans."
+        }, 
+        "EmploymentStatus":
+        {
+            "file":"data/emp_status.tsv",
+            "title":"Employment Status",
+            "order":["Employed", "Retired", "Not employed"],
+            "explanation":"Retirees, a relatively well-off demographic, default at a higher rate than even those who are not employed."
+        }, 
+        "HousingStatus":
+        {
+            "file":"data/housing_status.tsv",
+            "title":"Housing Status",
+            "order":["Homeowner", "Renter"],
+            "explanation":"Renters are as good as homeowners when it comes to repaying loans."
+        }, 
+        "DelinquencyLevelLast7Years":
+        {
+            "file":"data/delinquencies_last_7.tsv",
+            "title":" Delinquencies Last 7 Years",
+            "order":["0", "1-10", "11-25", "25+"],
+            "explanation":"Borrowers with a high number of past delinquencies are able to repay loans as well as those with few or no past delinquencies."
+        }, 
+        "CreditScore":
+        {
+            "file":"data/credit_score.tsv",
+            "title":"Credit Score",
+            "order":["1-500", "501-600", "601-700", "701-800", "801-900"],
+            "explanation":"As credit scores improve, the rate of bad loans drops dramatically from about 75% to just 5%."
+        }, 
+        "DebtToIncomeRatio":
+        {
+            "file":"data/d2i_ratio.tsv",
+            "title":"Debt-to-Income Ratio",
+            "order":["<1x", "1x-5x", ">5x"],
+            "explanation":"As the debt-to-income ratio increases, the rate of bad loans jumps from 15% to 45%."
+        }, 
+        "IncomeRange":
+        {
+            "file":"data/income.tsv",
+            "title":"Income",
+            "order":["$0", "$1-24,999", "$25,000-49,999", "$50,000-74,999", "$75,000-99,999", "$100,000+"],
+            "explanation":"As income rises, the loan default rate drops steadily."
+        }, 
+        "CurrentDelinquencyLevel":
+        {
+            "file":"data/current_delinquencies.tsv",
+            "title":"Current Delinquencies",
+            "order":["0", "1-5", "5+"],
+            "explanation":"Borrowers with over 5 pre-existing delinquencies default on half their loans."
+        }, 
+        "ProsperScore":
+        {
+            "file":"data/prosper_score.tsv",
+            "title":"Prosper Score",
+            "order":[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            "explanation":"1 = highest risk, 11 = lowest risk.<br><br>Prosper overestimates risk, as about 90% of loans across most risk levels are in good shape."
+        }
+    };
+    
+    firstKey = Object.keys(indicators)[0];
+    updateChart(firstKey);
+    
+    function updateChart(d) {
+        d3.selectAll("svg > *").remove();
+        drawChart(indicators[d].file, d, indicators[d].title, indicators[d].order);
+        document.getElementById('explanation').innerHTML = "<b>" + indicators[d].title + "</b><br><br>" + indicators[d].explanation;
+    }
+</script>
+</body>
+</html>

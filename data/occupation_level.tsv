@@ -1,0 +1,9 @@
+LoanStatus	OccupationLevel	Freq
+Good	Highly Skilled	19454
+Bad	Highly Skilled	2260
+Good	Skilled	29283
+Bad	Skilled	5039
+Good	Semi-skilled	43878
+Bad	Semi-skilled	9734
+Good	Student	544
+Bad	Student	155

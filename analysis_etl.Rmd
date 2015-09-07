@@ -1,0 +1,394 @@
+---
+output: html_document
+---
+#Analyzing Prosper Loan Data
+###by Bhavin V. Choksi
+
+***
+
+###Data
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+library(ggplot2)
+```
+
+```{r message = FALSE, warning = FALSE}
+#Loading data
+pld <- read.csv(file = "prosperLoanData.csv")
+
+#Checking number of rows loaded
+nrow(pld)
+
+#Checking columns that were loaded
+colnames(pld)
+
+#Keeping only demographic columns
+pld <- subset(pld, select = c("LoanStatus", "ProsperScore", "Occupation", 
+  "EmploymentStatus", "IsBorrowerHomeowner", "CreditScoreRangeLower", 
+  "CreditScoreRangeUpper", "CurrentDelinquencies", "DelinquenciesLast7Years", 
+  "DebtToIncomeRatio", "IncomeRange", "IncomeVerifiable"))
+```
+
+```{r message = FALSE, warning = FALSE}
+#LoanStatus
+levels(pld$LoanStatus)
+table(pld$LoanStatus)
+
+#Removing rows with Cancelled status, as it is not truly a loan status as per:
+#https://www.prosper.com/loans/how-to-get-a-loan/loan-verification-process/
+pld <- subset(pld, pld$LoanStatus != "Cancelled")
+
+#Categorizing status to a manageable number - Good and Bad
+#Will consider loans Past Due 1-15 and 16-30 days as Good
+pld$LoanStatus.Original <- pld$LoanStatus
+
+pld$LoanStatus <- NA
+pld$LoanStatus <- factor(pld$LoanStatus, levels = c("Good", "Bad"))
+
+good <- c("Completed", "FinalPaymentInProgress", "Current", 
+  "Past Due (1-15 days)", "Past Due (16-30 days)")
+bad <- c("Past Due (31-60 days)", "Past Due (61-90 days)", 
+  "Past Due (91-120 days)", "Past Due (>120 days)", "Defaulted", "Chargedoff")
+
+pld$LoanStatus[pld$LoanStatus.Original %in% good] <- "Good"
+pld$LoanStatus[pld$LoanStatus.Original %in% bad] <- "Bad"
+
+pld$LoanStatus.Original <- NULL
+
+table(pld$LoanStatus)
+
+#ProsperScore
+#As per https://api.prosper.com/ListingsHistorical, 11 is lowest risk
+unique(pld$ProsperScore)
+range(pld$ProsperScore, na.rm = TRUE)
+
+pld$ProsperScore <- factor(pld$ProsperScore, levels = c(1:11))
+
+levels(pld$ProsperScore)
+table(pld$ProsperScore)
+
+#Occupation
+levels(pld$Occupation)
+
+#Categorizing skill level for each occupation, based on my judgement
+pld$OccupationLevel <- NA
+pld$OccupationLevel <- factor(pld$OccupationLevel, levels = c("Highly Skilled", 
+  "Skilled", "Semi-skilled", "Student"))
+
+highly.skilled <- c("Accountant/CPA", "Architect", "Attorney", "Biologist", 
+                    "Chemist", "Computer Programmer", "Dentist", "Doctor", 
+                    "Executive", "Judge", "Pharmacist", 
+                    "Pilot - Private/Commercial", "Principal", "Professor", 
+                    "Psychologist", "Scientist", "Engineer - Chemical", 
+                    "Engineer - Electrical", "Engineer - Mechanical", 
+                    "Nurse (LPN)", "Nurse (RN)")
+
+skilled <- c("Analyst", "Car Dealer", "Civil Service", "Clergy", "Fireman", 
+             "Investor", "Medical Technician", "Military Officer", 
+             "Nurse's Aide", "Police Officer/Correction Officer", 
+             "Professional", "Realtor", "Retail Management", 
+             "Sales - Commission", "Social Worker", "Teacher")
+
+semi.skilled <- c("Administrative Assistant", "Bus Driver", "Clerical" , 
+                  "Construction", "Flight Attendant", "Food Service", 
+                  "Food Service Management", "Homemaker", "Laborer", 
+                  "Landscaping", "Military Enlisted", "Other", "Postal Service", 
+                  "Religious", "Sales - Retail", "Skilled Labor", 
+                  "Teacher's Aide", "Truck Driver", "Waiter/Waitress", 
+                  "Tradesman - Carpenter", "Tradesman - Electrician", 
+                  "Tradesman - Mechanic", "Tradesman - Plumber")
+
+student <- c("Student - College Freshman", "Student - College Graduate Student", 
+             "Student - College Junior", "Student - College Senior", 
+             "Student - College Sophomore", "Student - Community College", 
+             "Student - Technical School")
+
+pld$OccupationLevel[pld$Occupation %in% highly.skilled] <- "Highly Skilled"
+pld$OccupationLevel[pld$Occupation %in% skilled] <- "Skilled"
+pld$OccupationLevel[pld$Occupation %in% semi.skilled] <- "Semi-skilled"
+pld$OccupationLevel[pld$Occupation %in% student] <- "Student"
+
+table(pld$OccupationLevel)
+
+#EmploymentStatus
+levels(pld$EmploymentStatus)
+table(pld$EmploymentStatus)
+table(pld$Occupation[pld$EmploymentStatus == "Employed"])
+table(pld$Occupation[pld$EmploymentStatus == "Full-time"])
+table(pld$Occupation[pld$EmploymentStatus == "Part-time"])
+table(pld$Occupation[pld$EmploymentStatus == "Self-employed"])
+
+#Setting "Not available", "", "Other" to NA
+pld$EmploymentStatus[pld$EmploymentStatus == "Not available" | 
+                     pld$EmploymentStatus == "" | 
+                     pld$EmploymentStatus == "Other"] <- NA
+
+#Reducing EmploymentStatus to just Employed, Retired and Not employed, for two
+#reasons: 1. the difference between Employed and Full-time/Part-time is not
+#clear, 2. the key factor is whether a person is employed or not
+pld$EmploymentStatus[pld$EmploymentStatus == "Full-time" | 
+                     pld$EmploymentStatus == "Part-time" | 
+                     pld$EmploymentStatus == "Self-employed"] <- "Employed"
+
+pld$EmploymentStatus <- droplevels(pld$EmploymentStatus)
+pld$EmploymentStatus <- factor(pld$EmploymentStatus, levels = c("Employed", 
+  "Retired", "Not employed"))
+
+table(pld$EmploymentStatus)
+
+#IsBorrowerHomeowner
+table(pld$IsBorrowerHomeowner)
+
+#Creating a new column that will be easier to understand
+pld$HousingStatus <- NA
+pld$HousingStatus <- factor(pld$HousingStatus, levels = c("Homeowner", "Renter"))
+pld$HousingStatus[pld$IsBorrowerHomeowner == "True"] <- "Homeowner"
+pld$HousingStatus[pld$IsBorrowerHomeowner == "False"] <- "Renter"
+
+table(pld$HousingStatus)
+
+#CreditScoreRangeLower and CreditScoreRangeUpper
+range(pld$CreditScoreRangeLower, na.rm = TRUE)
+range(pld$CreditScoreRangeUpper, na.rm = TRUE)
+
+#Creating a new CreditScore column containing the median of Lower and Upper
+#Then binning the values into ranges of 100
+#First bin will be 1-500 because <1000 loans were offered in that range
+pld$CreditScore <- round(apply(subset(pld, , 
+  c(CreditScoreRangeLower, CreditScoreRangeUpper)), 1, FUN = median))
+
+range(pld$CreditScore, na.rm = TRUE)
+
+pld$CreditScore[pld$CreditScore %in% c(1:500)] <- "1-500"
+pld$CreditScore[pld$CreditScore %in% c(501:600)] <- "501-600"
+pld$CreditScore[pld$CreditScore %in% c(601:700)] <- "601-700"
+pld$CreditScore[pld$CreditScore %in% c(701:800)] <- "701-800"
+pld$CreditScore[pld$CreditScore %in% c(801:900)] <- "801-900"
+
+pld$CreditScore <- factor(pld$CreditScore, levels = 
+  c("1-500", "501-600", "601-700", "701-800", "801-900"))
+
+levels(pld$CreditScore)
+table(pld$CreditScore)
+
+#CurrentDelinquencies
+range(pld$CurrentDelinquencies, na.rm = TRUE)
+summary(pld$CurrentDelinquencies)
+table(pld$CurrentDelinquencies)
+
+#Most people have zero current delinquencies
+qplot(x = CurrentDelinquencies, data = pld, binwidth = 1) +
+  scale_x_continuous(breaks = seq(0, 100, 10))
+
+#Categorizing delinquency level as 0, 1-5, 5+
+pld$CurrentDelinquencyLevel <- NA
+pld$CurrentDelinquencyLevel <- factor(pld$CurrentDelinquencyLevel, 
+  levels = c("0", "1-5", "5+"))
+
+pld$CurrentDelinquencyLevel[pld$CurrentDelinquencies == 0] <- "0"
+pld$CurrentDelinquencyLevel[pld$CurrentDelinquencies %in% c(1:5)] <- "1-5"
+pld$CurrentDelinquencyLevel[pld$CurrentDelinquencies > 5] <- "5+"
+
+levels(pld$CurrentDelinquencyLevel)
+table(pld$CurrentDelinquencyLevel)
+
+#DelinquenciesLast7Years
+range(pld$DelinquenciesLast7Years, na.rm = TRUE)
+summary(pld$DelinquenciesLast7Years)
+table(pld$DelinquenciesLast7Years)
+
+#Most people have zero delinquencies in the last 7 years
+qplot(x = DelinquenciesLast7Years, data = pld, binwidth = 1) +
+  scale_x_continuous(breaks = seq(0, 100, 10))
+
+#Categorizing last 7 years' delinquency level as 0, 1-10, 11-25, 25+
+pld$DelinquencyLevelLast7Years <- NA
+pld$DelinquencyLevelLast7Years <- factor(pld$DelinquencyLevelLast7Years, 
+  levels = c("0", "1-10", "11-25", "25+"))
+
+pld$DelinquencyLevelLast7Years[pld$DelinquenciesLast7Years == 0] <- "0"
+pld$DelinquencyLevelLast7Years[pld$DelinquenciesLast7Years %in% 
+  c(1:10)] <- "1-10"
+pld$DelinquencyLevelLast7Years[pld$DelinquenciesLast7Years %in% 
+  c(11:25)] <- "11-25"
+pld$DelinquencyLevelLast7Years[pld$DelinquenciesLast7Years > 25] <- "25+"
+
+levels(pld$DelinquencyLevelLast7Years)
+table(pld$DelinquencyLevelLast7Years)
+
+#DebtToIncomeRatio
+range(pld$DebtToIncomeRatio, na.rm = TRUE)
+
+#Most people have debt level at under 1x income
+qplot(x = DebtToIncomeRatio, data = pld, binwidth = .1) +
+  scale_x_continuous(breaks = seq(0, 11, 1))
+
+#Checking if debt levels are related to homeownership, however that does not
+#seem to be the case - the debt in the ratio must not include mortgage
+table(pld$IsBorrowerHomeowner[pld$DebtToIncomeRatio <= 1])
+table(pld$IsBorrowerHomeowner[pld$DebtToIncomeRatio > 1])
+table(pld$IsBorrowerHomeowner[pld$DebtToIncomeRatio > 5])
+
+#Categorizing debt-to-income ratio
+pld$DebtToIncomeRatio.Original <- pld$DebtToIncomeRatio
+pld$DebtToIncomeRatio <- NA
+pld$DebtToIncomeRatio <- factor(pld$DebtToIncomeRatio, levels = c(
+  "<1x", "1x-5x", ">5x"))
+pld$DebtToIncomeRatio[pld$DebtToIncomeRatio.Original < 1] <- "<1x"
+pld$DebtToIncomeRatio[pld$DebtToIncomeRatio.Original >= 1 & 
+                        pld$DebtToIncomeRatio.Original <= 5] <- "1x-5x"
+pld$DebtToIncomeRatio[pld$DebtToIncomeRatio.Original > 5] <- ">5x"
+
+levels(pld$DebtToIncomeRatio)
+table(pld$DebtToIncomeRatio)
+
+#IncomeRange
+levels(pld$IncomeVerifiable)
+levels(pld$IncomeRange)
+table(pld$IncomeRange[pld$IncomeVerifiable == "False"])
+table(pld$IncomeRange[pld$IncomeVerifiable == "True"])
+
+#Ignoring income that is not verifiable, or undisclosed
+pld$IncomeRange[pld$IncomeVerifiable == "False"] <- NA
+pld$IncomeRange[pld$IncomeRange == "Not displayed"] <- NA
+
+#Setting income for "Not employed" to $0
+pld$IncomeRange[pld$IncomeRange == "Not employed"] <- "$0"
+
+pld$IncomeRange <- factor(pld$IncomeRange, levels = c("$0", "$1-24,999", 
+  "$25,000-49,999", "$50,000-74,999", "$75,000-99,999", "$100,000+"))
+pld$IncomeRange <- droplevels(pld$IncomeRange)
+
+levels(pld$IncomeRange)
+```
+
+###Draft Plots
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+library(scales)
+```
+
+```{r message = FALSE, warning = FALSE}
+#Using a colorblind-safe, diverging color palette from ColorBrewer
+fill.color <- c("#91bfdb", "#fc8d59")
+
+ggplot(subset(pld, is.na(pld$ProsperScore) == FALSE), 
+  aes(x = ProsperScore, fill = LoanStatus)) +
+  geom_bar(position = "fill") +
+  labs(x = "< Highest Risk  -  Prosper Score  -  Lowest Risk >", y = "Percentage", 
+  fill = "Loan Status") +
+  scale_fill_manual(values = fill.color) +
+  scale_y_continuous(labels = percent_format())
+
+ggplot(subset(pld, is.na(pld$OccupationLevel) == FALSE), 
+  aes(x = OccupationLevel, fill = LoanStatus)) +
+  geom_bar(position = "fill") +
+  labs(x = "Occupation Level", y = "Percentage", fill = "Loan Status") +
+  scale_fill_manual(values = fill.color) +
+  scale_y_continuous(labels = percent_format())
+
+ggplot(subset(pld, is.na(pld$EmploymentStatus) == FALSE), 
+  aes(x = EmploymentStatus, fill = LoanStatus)) +
+  geom_bar(position = "fill") +
+  labs(x = "Employment Status", y = "Percentage", fill = "Loan Status") +
+  scale_fill_manual(values = fill.color) +
+  scale_y_continuous(labels = percent_format())
+
+ggplot(subset(pld, is.na(pld$HousingStatus) == FALSE), 
+  aes(x = HousingStatus, fill = LoanStatus)) +
+  geom_bar(position = "fill") +
+  labs(x = "Housing Status", y = "Percentage", fill = "Loan Status") +
+  scale_fill_manual(values = fill.color) +
+  scale_y_continuous(labels = percent_format())
+
+ggplot(subset(pld, is.na(pld$CreditScore) == FALSE), 
+  aes(x = CreditScore, fill = LoanStatus)) +
+  geom_bar(position = "fill") +
+  labs(x = "Credit Score", y = "Percentage", fill = "Loan Status") +
+  scale_fill_manual(values = fill.color) +
+  scale_y_continuous(labels = percent_format())
+
+ggplot(subset(pld, is.na(pld$CurrentDelinquencyLevel) == FALSE), 
+  aes(x = CurrentDelinquencyLevel, fill = LoanStatus)) +
+  geom_bar(position = "fill") +
+  labs(x = "Current Delinquency Level", y = "Percentage", fill = "Loan Status") +
+  scale_fill_manual(values = fill.color) +
+  scale_y_continuous(labels = percent_format())
+
+ggplot(subset(pld, is.na(pld$DelinquencyLevelLast7Years) == FALSE), 
+  aes(x = DelinquencyLevelLast7Years, fill = LoanStatus)) +
+  geom_bar(position = "fill") +
+  labs(x = "Delinquency Level Last 7 Years", y = "Percentage", 
+  fill = "Loan Status") +
+  scale_fill_manual(values = fill.color) +
+  scale_y_continuous(labels = percent_format())
+
+ggplot(subset(pld, is.na(pld$DebtToIncomeRatio) == FALSE), 
+  aes(x = DebtToIncomeRatio, fill = LoanStatus)) +
+  geom_bar(position = "fill") +
+  labs(x = "Debt-to-Income Ratio", y = "Percentage", fill = "Loan Status") +
+  scale_fill_manual(values = fill.color) +
+  scale_y_continuous(labels = percent_format())
+  
+ggplot(subset(pld, is.na(pld$IncomeRange) == FALSE), 
+  aes(x = IncomeRange, fill = LoanStatus)) +
+  geom_bar(position = "fill") +
+  labs(x = "Income", y = "Percentage", fill = "Loan Status") +
+  scale_fill_manual(values = fill.color) +
+  scale_y_continuous(labels = percent_format())
+```
+
+###Data Output
+
+```{r message = FALSE, warning = FALSE}
+pld <- subset(pld, select = c("LoanStatus", "ProsperScore", "OccupationLevel", 
+  "EmploymentStatus", "CreditScore", "DebtToIncomeRatio", "IncomeRange", 
+  "HousingStatus", "CurrentDelinquencyLevel", "DelinquencyLevelLast7Years"))
+
+write.table(data.frame(table(subset(pld, is.na(pld$ProsperScore) == FALSE, 
+  select = c("LoanStatus", "ProsperScore")))), 
+  file = "data/prosper_score.tsv", quote = FALSE, col.names = TRUE, 
+  row.names = FALSE, sep = "\t")
+
+write.table(data.frame(table(subset(pld, is.na(pld$OccupationLevel) == FALSE, 
+  select = c("LoanStatus", "OccupationLevel")))), 
+  file = "data/occupation_level.tsv", quote = FALSE, col.names = TRUE, 
+  row.names = FALSE, sep = "\t")
+
+write.table(data.frame(table(subset(pld, is.na(pld$EmploymentStatus) == FALSE, 
+  select = c("LoanStatus", "EmploymentStatus")))), 
+  file = "data/emp_status.tsv", quote = FALSE, col.names = TRUE, 
+  row.names = FALSE, sep = "\t")
+
+write.table(data.frame(table(subset(pld, is.na(pld$CreditScore) == FALSE, 
+  select = c("LoanStatus", "CreditScore")))), 
+  file = "data/credit_score.tsv", quote = FALSE, col.names = TRUE, 
+  row.names = FALSE, sep = "\t")
+
+write.table(data.frame(table(subset(pld, is.na(pld$DebtToIncomeRatio) == FALSE, 
+  select = c("LoanStatus", "DebtToIncomeRatio")))), 
+  file = "data/d2i_ratio.tsv", quote = FALSE, col.names = TRUE, 
+  row.names = FALSE, sep = "\t")
+
+write.table(data.frame(table(subset(pld, is.na(pld$IncomeRange) == FALSE, 
+  select = c("LoanStatus", "IncomeRange")))), 
+  file = "data/income.tsv", quote = FALSE, col.names = TRUE, 
+  row.names = FALSE, sep = "\t")
+
+write.table(data.frame(table(subset(pld, is.na(pld$HousingStatus) == FALSE, 
+  select = c("LoanStatus", "HousingStatus")))), 
+  file = "data/housing_status.tsv", quote = FALSE, col.names = TRUE, 
+  row.names = FALSE, sep = "\t")
+
+write.table(data.frame(table(subset(pld, 
+  is.na(pld$CurrentDelinquencyLevel) == FALSE, 
+  select = c("LoanStatus", "CurrentDelinquencyLevel")))), 
+  file = "data/current_delinquencies.tsv", quote = FALSE, col.names = TRUE, 
+  row.names = FALSE, sep = "\t")
+
+write.table(data.frame(table(subset(pld, 
+  is.na(pld$DelinquencyLevelLast7Years) ==   FALSE, 
+  select = c("LoanStatus", "DelinquencyLevelLast7Years")))), 
+  file = "data/delinquencies_last_7.tsv", quote = FALSE, col.names = TRUE, 
+  row.names = FALSE, sep = "\t")
+```

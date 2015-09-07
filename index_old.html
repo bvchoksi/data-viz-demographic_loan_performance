@@ -1,0 +1,169 @@
+<html>
+<body topmargin=20 leftmargin=20>
+<style>
+h1 {
+    font-family: "Helvetica";
+    font-size: 36px;
+    font-weight: 300;
+    margin: .5em 0 .5em 0;
+}
+p {
+    font-family: "Helvetica";
+    font-size: 18px;
+    font-weight: 300;
+}
+</style>
+<h1>Good vs. Bad Loans by Demographic Indicators</h1>
+<p>by Bhavin V. Choksi</p>
+<hr color=#eeeeee noshade>
+<table width=100%><tr valign=top><td valign=top>
+<table cellpadding=5 width=200>
+    <tr><td><input type=button onclick="updateChart('ProsperScore');" value="Prosper Score"></td></tr>
+    <tr><td><input type=button onclick="updateChart('OccupationLevel')" value="Occupation Level"</td></tr>
+    <tr><td><input type=button onclick="updateChart('EmploymentStatus')" value="Employment Status"</td></tr>
+    <tr><td><input type=button onclick="updateChart('CreditScore')" value="Credit Score"</td></tr>
+    <tr><td><input type=button onclick="updateChart('DebtToIncomeRatio')" value="Debt-to-Income Ratio"</td></tr>
+    <tr><td><input type=button onclick="updateChart('IncomeRange')" value="Income"</td></tr>
+    <tr><td><input type=button onclick="updateChart('HousingStatus')" value="Housing Status"</td></tr>
+    <tr><td><input type=button onclick="updateChart('CurrentDelinquencyLevel')" value="Current Delinquencies"</td></tr>
+    <tr><td><input type=button onclick="updateChart('DelinquencyLevelLast7Years')" value="Delinquencies Last 7 Years"</td></tr>
+</table>
+</td><td valign=top>
+<div id=chartContainer>
+</div>
+</td></tr></table>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://dimplejs.org/dist/dimple.v2.1.6.min.js"></script>
+<script type="text/javascript">
+    var svg = dimple.newSvg("#chartContainer", 800, 500);
+    
+    function drawChart(file, category, categoryTitle, orderRule) {
+        d3.tsv(file, function (data) {
+            var chart = new dimple.chart(svg, data);
+            chart.setBounds(50, 5, 600, 400);
+            
+            var x = chart.addCategoryAxis("x", category);
+            x.addOrderRule(orderRule);
+            x.title = categoryTitle;
+            
+            //Bubbles will indicate quantum of loans
+            var z = chart.addMeasureAxis("z", "Freq");
+            
+            var y = chart.addPctAxis("y", "Freq");
+            y.title = "";
+            
+            //Bubble plus line chart to show trend in good and bad loans
+            chart.addSeries("LoanStatus", dimple.plot.bubble);
+            var s = chart.addSeries("LoanStatus", dimple.plot.line);
+            s.lineMarkers = true;
+            s.addOrderRule(["Good", "Overdue", "Bad"]);
+            
+            chart.assignColor("Good", "#91bfdb");
+            chart.assignColor("Overdue", "#ffffbf");
+            chart.assignColor("Bad", "#fc8d59");
+            chart.addLegend(650, 5, 100, 100, "right");
+            
+            s.afterDraw = function (shape, data) {
+                var s = d3.select(shape),
+                rect = {
+                    x: parseFloat(s.attr("x")),
+                    y: parseFloat(s.attr("y")),
+                    width: parseFloat(s.attr("width")),
+                    height: parseFloat(s.attr("height"))
+                };
+                
+                //Only label bars where the text can fit
+                if (rect.height >= 20) {
+                    //Add a text label for the value
+                    svg.append("text")
+                    
+                    //Position in the centre of the shape (vertical position is
+                    //manually set due to cross-browser problems with baseline)
+                    .attr("x", rect.x + rect.width / 2)
+                    .attr("y", rect.y + rect.height / 2 + 3.5)
+                    
+                    //Centre align
+                    .style("text-anchor", "middle")
+                    .style("font-size", "10px")
+                    .style("font-family", "sans-serif")
+                    .style("font-weight", "bold")
+                    
+                    //Make it a little transparent to tone down the black
+                    .style("opacity", 0.6)
+                    
+                    //Format the number
+                    .text(d3.format(",.1f")(data.yValue / 1000) + "k");
+                }
+            };
+            
+            chart.draw();
+        });
+    }
+    
+    var indicators = {
+        "ProsperScore":
+        {
+            "file":"data/prosper_score.tsv",
+            "title":"Prosper Score",
+            "order":[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        }, 
+        "OccupationLevel":
+        {
+            "file":"data/occupation_level.tsv",
+            "title":"Occupation Level",
+            "order":["Highly Skilled", "Skilled", "Semi-skilled", "Student"],
+        }, 
+        "EmploymentStatus":
+        {
+            "file":"data/emp_status.tsv",
+            "title":"Employment Status",
+            "order":["Employed", "Retired", "Not employed"],
+        }, 
+        "CreditScore":
+        {
+            "file":"data/credit_score.tsv",
+            "title":"Credit Score",
+            "order":["1-500", "501-600", "601-700", "701-800", "801-900"],
+        }, 
+        "DebtToIncomeRatio":
+        {
+            "file":"data/d2i_ratio.tsv",
+            "title":"Debt-to-Income Ratio",
+            "order":["<1x", "1x-5x", ">5x"],
+        }, 
+        "IncomeRange":
+        {
+            "file":"data/income.tsv",
+            "title":"Income",
+            "order":["$0", "$1-24,999", "$25,000-49,999", "$50,000-74,999", "$75,000-99,999", "$100,000+"],
+        }, 
+        "HousingStatus":
+        {
+            "file":"data/housing_status.tsv",
+            "title":"Housing Status",
+            "order":["Homeowner", "Renter"],
+        }, 
+        "CurrentDelinquencyLevel":
+        {
+            "file":"data/current_delinquencies.tsv",
+            "title":"Current Delinquencies",
+            "order":["0", "1-5", "5+"],
+        }, 
+        "DelinquencyLevelLast7Years":
+        {
+            "file":"data/delinquencies_last_7.tsv",
+            "title":" Delinquencies Last 7 Years",
+            "order":["0", "1-10", "11-25", "25+"],
+        }, 
+    };
+    
+    firstKey = Object.keys(indicators)[0];
+    updateChart(firstKey);
+    
+    function updateChart(d) {
+        d3.selectAll("svg > *").remove();
+        drawChart(indicators[d].file, d, indicators[d].title, indicators[d].order);
+    }
+</script>
+</body>
+</html>

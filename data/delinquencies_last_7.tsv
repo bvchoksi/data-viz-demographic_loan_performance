@@ -1,0 +1,9 @@
+LoanStatus	DelinquencyLevelLast7Years	Freq
+Good	0	66458
+Bad	0	9980
+Good	1-10	17248
+Bad	1-10	4416
+Good	11-25	7599
+Bad	11-25	2067
+Good	25+	3977
+Bad	25+	1200

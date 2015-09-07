@@ -1,0 +1,5 @@
+LoanStatus	HousingStatus	Freq
+Good	Homeowner	49373
+Bad	Homeowner	8103
+Good	Renter	46553
+Bad	Renter	9903

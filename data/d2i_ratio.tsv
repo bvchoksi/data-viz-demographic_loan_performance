@@ -1,0 +1,7 @@
+LoanStatus	DebtToIncomeRatio	Freq
+Good	<1x	88458
+Bad	<1x	16107
+Good	1x-5x	330
+Bad	1x-5x	150
+Good	>5x	183
+Bad	>5x	150

@@ -1,0 +1,7 @@
+LoanStatus	CurrentDelinquencyLevel	Freq
+Good	0	78584
+Bad	0	11156
+Good	1-5	15413
+Bad	1-5	5052
+Good	5+	1466
+Bad	5+	1565

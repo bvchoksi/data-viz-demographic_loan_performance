@@ -1,0 +1,7 @@
+LoanStatus	EmploymentStatus	Freq
+Good	Employed	86853
+Bad	Employed	14045
+Good	Retired	553
+Bad	Retired	242
+Good	Not employed	606
+Bad	Not employed	229
